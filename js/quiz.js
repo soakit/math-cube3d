@@ -47,30 +47,37 @@ class QuizHelper {
 
   // 生成混合题集 (10道题)
   generateQuestions() {
+    // 随机打乱并分配所有 11 种合法展开图，保证 quiz 内使用不同展开图
+    const shuffledValid = [...NETS_DATA].sort(() => Math.random() - 0.5);
+    
+    const typeAValidNets = [shuffledValid[0], shuffledValid[1]];
+    const typeBNets = [shuffledValid[2], shuffledValid[3], shuffledValid[4]];
+    const typeCNets = [shuffledValid[5], shuffledValid[6], shuffledValid[7]];
+    
+    // 随机打乱并分配无效展开图，保证不重复
+    const shuffledInvalid = [...this.invalidNets].sort(() => Math.random() - 0.5);
+    const typeAInvalidNets = [shuffledInvalid[0], shuffledInvalid[1]];
+
     const list = [];
     // Q1-Q4: 能否拼合 (2个能，2个不能)
-    list.push(this.makeTypeA(true));
-    list.push(this.makeTypeA(false));
-    list.push(this.makeTypeA(true));
-    list.push(this.makeTypeA(false));
+    list.push(this.makeTypeA(true, typeAValidNets[0]));
+    list.push(this.makeTypeA(false, typeAInvalidNets[0]));
+    list.push(this.makeTypeA(true, typeAValidNets[1]));
+    list.push(this.makeTypeA(false, typeAInvalidNets[1]));
     // Q5-Q7: 找对面 (3个)
-    list.push(this.makeTypeB());
-    list.push(this.makeTypeB());
-    list.push(this.makeTypeB());
+    list.push(this.makeTypeB(typeBNets[0]));
+    list.push(this.makeTypeB(typeBNets[1]));
+    list.push(this.makeTypeB(typeBNets[2]));
     // Q8-Q10: 立体匹配 (3个)
-    list.push(this.makeTypeC());
-    list.push(this.makeTypeC());
-    list.push(this.makeTypeC());
+    list.push(this.makeTypeC(typeCNets[0]));
+    list.push(this.makeTypeC(typeCNets[1]));
+    list.push(this.makeTypeC(typeCNets[2]));
 
     // 打乱题库顺序
     return list.sort(() => Math.random() - 0.5);
   }
 
-  makeTypeA(isValid) {
-    const net = isValid
-      ? NETS_DATA[Math.floor(Math.random() * NETS_DATA.length)]
-      : this.invalidNets[Math.floor(Math.random() * this.invalidNets.length)];
-    
+  makeTypeA(isValid, net) {
     return {
       type: 'A',
       netData: net,
@@ -80,8 +87,7 @@ class QuizHelper {
     };
   }
 
-  makeTypeB() {
-    const net = NETS_DATA[Math.floor(Math.random() * NETS_DATA.length)];
+  makeTypeB(net) {
     const rootId = net.rootId;
     
     const opposites = {
@@ -138,46 +144,52 @@ class QuizHelper {
     return { front: 3, top: 5, right: 4 };
   }
 
-  makeTypeC() {
-    const net = NETS_DATA[Math.floor(Math.random() * NETS_DATA.length)];
+  makeTypeC(net) {
     const visibleIds = this.getVisibleFaceIds(net.id);
     const icons = ['🌟', '🔴', '🔺'];
 
     // 正确的映射
-    const mapA = {};
-    mapA[visibleIds.front] = icons[0];
-    mapA[visibleIds.top] = icons[1];
-    mapA[visibleIds.right] = icons[2];
+    const mapCorrect = {};
+    mapCorrect[visibleIds.front] = icons[0];
+    mapCorrect[visibleIds.top] = icons[1];
+    mapCorrect[visibleIds.right] = icons[2];
 
     // 错误的映射 B (颠倒相邻位置)
-    const mapB = {};
-    mapB[visibleIds.front] = icons[0];
-    mapB[visibleIds.top] = icons[2];
-    mapB[visibleIds.right] = icons[1];
+    const mapSwapped = {};
+    mapSwapped[visibleIds.front] = icons[0];
+    mapSwapped[visibleIds.top] = icons[2];
+    mapSwapped[visibleIds.right] = icons[1];
 
-    // 错误的映射 C (图案缺失/错误)
-    const mapC = {};
-    mapC[visibleIds.front] = icons[0];
-    mapC[visibleIds.top] = icons[1];
-    mapC[visibleIds.right] = '❓';
+    // 错误的映射 C (图案缺失)
+    const mapMissing = {};
+    mapMissing[visibleIds.front] = icons[0];
+    mapMissing[visibleIds.top] = icons[1];
+    mapMissing[visibleIds.right] = ''; // 留空，不引入外来图案
 
+    // 组合候选集，然后随机打乱映射关系
+    const candidates = [
+      { map: mapCorrect, isCorrect: true },
+      { map: mapSwapped, isCorrect: false },
+      { map: mapMissing, isCorrect: false }
+    ];
+    const shuffledCandidates = candidates.sort(() => Math.random() - 0.5);
+
+    // 将打乱的映射按顺序绑定给 正方体 A、B、C 选项（保持按钮顺序固定）
     const optionsData = [
-      { id: 'A', label: '正方体 A', map: mapA, isCorrect: true },
-      { id: 'B', label: '正方体 B', map: mapB, isCorrect: false },
-      { id: 'C', label: '正方体 C', map: mapC, isCorrect: false }
+      { label: '正方体 A', map: shuffledCandidates[0].map, isCorrect: shuffledCandidates[0].isCorrect },
+      { label: '正方体 B', map: shuffledCandidates[1].map, isCorrect: shuffledCandidates[1].isCorrect },
+      { label: '正方体 C', map: shuffledCandidates[2].map, isCorrect: shuffledCandidates[2].isCorrect }
     ];
 
-    // 随机打乱选项
-    const shuffled = optionsData.sort(() => Math.random() - 0.5);
-    const correctOption = shuffled.find(o => o.isCorrect);
+    const correctOption = optionsData.find(o => o.isCorrect);
 
     return {
       type: 'C',
       netData: net,
-      customTextMap: mapA, // 展开图采用正确的相对位置
+      customTextMap: mapCorrect, // 展开图采用正确的相对位置
       questionText: '下面哪一个正方体是由左侧的图案展开图折叠而来的？',
-      options: shuffled.map(o => o.label),
-      optionsData: shuffled,
+      options: ['正方体 A', '正方体 B', '正方体 C'],
+      optionsData: optionsData,
       correctAnswer: correctOption.label
     };
   }
