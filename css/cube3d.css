@@ -70,13 +70,13 @@
   left: 0;
   top: -60px;
   transform-origin: bottom center;
-  transform: rotateX(calc(var(--fold-angle, 0) * 1deg));
+  transform: rotateX(calc(var(--fold-angle, 0) * -1deg));
 }
 .face.joint-bottom {
   left: 0;
   top: 60px;
   transform-origin: top center;
-  transform: rotateX(calc(var(--fold-angle, 0) * -1deg));
+  transform: rotateX(calc(var(--fold-angle, 0) * 1deg));
 }
 
 /* 面片背景颜色配置 (马卡龙温和色系) */
