@@ -91,11 +91,11 @@ class QuizHelper {
       '1-4-1-d': { 3: 1, 1: 3, 2: 4, 4: 2, 5: 6, 6: 5 },
       '1-4-1-e': { 3: 1, 1: 3, 2: 4, 4: 2, 5: 6, 6: 5 },
       '1-4-1-f': { 3: 1, 1: 3, 2: 4, 4: 2, 5: 6, 6: 5 },
-      '2-3-1-a': { 3: 1, 1: 3, 2: 5, 5: 2, 4: 6, 6: 4 },
-      '2-3-1-b': { 3: 6, 6: 3, 2: 5, 5: 2, 1: 4, 4: 1 },
-      '2-3-1-c': { 3: 6, 6: 3, 2: 5, 5: 2, 1: 4, 4: 1 },
+      '2-3-1-a': { 1: 6, 6: 1, 2: 3, 3: 2, 4: 5, 5: 4 },
+      '2-3-1-b': { 1: 6, 6: 1, 2: 3, 3: 2, 4: 5, 5: 4 },
+      '2-3-1-c': { 1: 6, 6: 1, 2: 3, 3: 2, 4: 5, 5: 4 },
       '2-2-2': { 3: 6, 6: 3, 2: 5, 5: 2, 1: 4, 4: 1 },
-      '3-3': { 3: 6, 6: 3, 2: 5, 5: 2, 1: 4, 4: 1 }
+      '3-3': { 1: 3, 3: 1, 2: 5, 5: 2, 4: 6, 6: 4 }
     };
 
     const map = opposites[net.id] || { 3: 1, 1: 3, 2: 4, 4: 2, 5: 6, 6: 5 };
@@ -125,17 +125,60 @@ class QuizHelper {
     };
   }
 
+  getVisibleFaceIds(netId) {
+    if (netId.startsWith('1-4-1')) {
+      return { front: 3, top: 5, right: 4 };
+    } else if (netId.startsWith('2-3-1')) {
+      return { front: 3, top: 1, right: 5 };
+    } else if (netId === '2-2-2') {
+      return { front: 3, top: 1, right: 5 };
+    } else if (netId === '3-3') {
+      return { front: 3, top: 6, right: 5 };
+    }
+    return { front: 3, top: 5, right: 4 };
+  }
+
   makeTypeC() {
     const net = NETS_DATA[Math.floor(Math.random() * NETS_DATA.length)];
-    const textMap = { 3: '🌟', 2: '🔴', 4: '🔺' };
+    const visibleIds = this.getVisibleFaceIds(net.id);
+    const icons = ['🌟', '🔴', '🔺'];
+
+    // 正确的映射
+    const mapA = {};
+    mapA[visibleIds.front] = icons[0];
+    mapA[visibleIds.top] = icons[1];
+    mapA[visibleIds.right] = icons[2];
+
+    // 错误的映射 B (颠倒相邻位置)
+    const mapB = {};
+    mapB[visibleIds.front] = icons[0];
+    mapB[visibleIds.top] = icons[2];
+    mapB[visibleIds.right] = icons[1];
+
+    // 错误的映射 C (图案缺失/错误)
+    const mapC = {};
+    mapC[visibleIds.front] = icons[0];
+    mapC[visibleIds.top] = icons[1];
+    mapC[visibleIds.right] = '❓';
+
+    const optionsData = [
+      { id: 'A', label: '正方体 A', map: mapA, isCorrect: true },
+      { id: 'B', label: '正方体 B', map: mapB, isCorrect: false },
+      { id: 'C', label: '正方体 C', map: mapC, isCorrect: false }
+    ];
+
+    // 随机打乱选项
+    const shuffled = optionsData.sort(() => Math.random() - 0.5);
+    const correctOption = shuffled.find(o => o.isCorrect);
 
     return {
       type: 'C',
       netData: net,
-      customTextMap: textMap,
+      customTextMap: mapA, // 展开图采用正确的相对位置
       questionText: '下面哪一个正方体是由左侧的图案展开图折叠而来的？',
-      options: ['正方体A (正确)', '正方体B (相邻颠倒)', '正方体C (漏画图案)'],
-      correctAnswer: '正方体A (正确)'
+      options: shuffled.map(o => o.label),
+      optionsData: shuffled,
+      correctAnswer: correctOption.label
     };
   }
 }
@@ -193,6 +236,42 @@ class QuizManager {
     qText.style.fontSize = '16px';
     qText.innerText = q.questionText;
     quizDiv.appendChild(qText);
+
+    if (q.type === 'C') {
+      const miniCubesDiv = document.createElement('div');
+      miniCubesDiv.className = 'mini-cubes-container';
+      miniCubesDiv.style.cssText = 'display:flex; justify-content:space-around; gap:12px; margin: 12px 0;';
+      
+      q.optionsData.forEach(opt => {
+        const item = document.createElement('div');
+        item.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:6px; flex:1; min-width: 0;';
+        
+        const viewport = document.createElement('div');
+        viewport.className = 'cube-viewport mini-viewport';
+        viewport.style.cssText = 'width:100%; height:120px;';
+        
+        const container = document.createElement('div');
+        container.className = 'cube-container';
+        viewport.appendChild(container);
+        item.appendChild(viewport);
+        
+        const label = document.createElement('div');
+        label.innerText = opt.label;
+        label.style.cssText = 'font-weight:bold; font-size:13px; color:#4a5568;';
+        item.appendChild(label);
+        
+        miniCubesDiv.appendChild(item);
+        
+        // Render the folded mini cube
+        setTimeout(() => {
+          const miniCube = new Cube3D(container);
+          miniCube.renderNet(q.netData, opt.map);
+          miniCube.setFoldAngle(90);
+        }, 50);
+      });
+      
+      quizDiv.appendChild(miniCubesDiv);
+    }
 
     const optsDiv = document.createElement('div');
     optsDiv.style.cssText = 'display:flex; flex-direction:column; gap:0.6rem;';

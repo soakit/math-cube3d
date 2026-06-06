@@ -1,6 +1,6 @@
 class Cube3D {
   constructor(containerId) {
-    this.container = document.getElementById(containerId);
+    this.container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
     this.currentAngle = 0;
     this.rotationX = -30;
     this.rotationY = 45;
