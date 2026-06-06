@@ -124,4 +124,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initDemoTab();
   window.cubeInstance = cube;
+  window.quizManager = new QuizManager(cube, 'tabQuiz');
 });
